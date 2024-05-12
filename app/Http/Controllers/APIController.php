@@ -25,36 +25,47 @@ class APIController extends Controller
     }
 
     private function onlyImageAllowed($file_uploads){
-    	foreach ($file_uploads as $file) {
-		    // Check if base64 data represents an image
-		    if (preg_match('/^data:image\/(\w+);base64,/', $file['base64'])) {
-		        // Extract the image type from the base64 string
-		        $imageType = substr($file['base64'], 5, strpos($file['base64'], ';') - 5);
+	    foreach ($file_uploads as $file) {
+	        // Check if base64 data represents an image
+	        if (preg_match('/^data:image\/(\w+);base64,/', $file['base64'])) {
+	            // Extract the image type from the base64 string
+	            $imageType = substr($file['base64'], 5, strpos($file['base64'], ';') - 5);
 
-		        // Check if the image type is valid
-		        if (in_array($imageType, ['image/png','image/jpeg', 'image/jpg', 'image/gif', 'image/bmp'])) {
-		            
-		            return true;
-		        
-		        } else {
-		            // Invalid image type
-		            return [
-		                'message' => "Invalid image type: $imageType",
-		                'status_code' => 422
-		            ];
-		        }
+	            // Check if the image type is valid
+	            if (in_array($imageType, ['image/png','image/jpeg', 'image/jpg', 'image/gif', 'image/bmp'])) {
+	                // Decode base64 data to get the image size
+	                $imageData = base64_decode(preg_replace('/^data:image\/\w+;base64,/', '', $file['base64']));
+	                $imageSize = strlen($imageData); // Get image size in bytes
 
-		    } else {
-		        // Not a valid image
-		        return [
-		            'message' => "Not a valid image file",
-		            'status_code' => 422
-		        ];
-		    }
-		}
+	                // Check if image size is within the limit (2MB)
+	                if ($imageSize <= (2 * 1024 * 1024)) { // 2MB in bytes
+	                    return true;
+	                } else {
+	                    // Image size exceeds the limit
+	                    return [
+	                        'message' => "Image size exceeds the limit (2MB)",
+	                        'status_code' => 422
+	                    ];
+	                }
+	            } else {
+	                // Invalid image type
+	                return [
+	                    'message' => "Invalid image type: $imageType",
+	                    'status_code' => 422
+	                ];
+	            }
 
-		return true;
-    }
+	        } else {
+	            // Not a valid image
+	            return [
+	                'message' => "Not a valid image file",
+	                'status_code' => 422
+	            ];
+	        }
+	    }
+
+	    return true;
+	}
 
     private function flushCacheWithPrefix($prefix)
     {
