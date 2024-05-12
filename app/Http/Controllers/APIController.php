@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Validator;
 use DateTime;
 use DB;
+use Carbon\Carbon;
 
 class APIController extends Controller
 {
@@ -21,6 +22,38 @@ class APIController extends Controller
     public function getIndex(Application $app)
     {
         return new JsonResponse(['message' => $app->version()]);
+    }
+
+    private function onlyImageAllowed($file_uploads){
+    	foreach ($file_uploads as $file) {
+		    // Check if base64 data represents an image
+		    if (preg_match('/^data:image\/(\w+);base64,/', $file['base64'])) {
+		        // Extract the image type from the base64 string
+		        $imageType = substr($file['base64'], 5, strpos($file['base64'], ';') - 5);
+
+		        // Check if the image type is valid
+		        if (in_array($imageType, ['image/png','image/jpeg', 'image/jpg', 'image/gif', 'image/bmp'])) {
+		            
+		            return true;
+		        
+		        } else {
+		            // Invalid image type
+		            return [
+		                'message' => "Invalid image type: $imageType",
+		                'status_code' => 422
+		            ];
+		        }
+
+		    } else {
+		        // Not a valid image
+		        return [
+		            'message' => "Not a valid image file",
+		            'status_code' => 422
+		        ];
+		    }
+		}
+
+		return true;
     }
 
     private function flushCacheWithPrefix($prefix)
@@ -212,7 +245,17 @@ class APIController extends Controller
 	        ], 200);
 	    }
 
-	    if (DB::table('bookings')->where("customer_email",$req->customer_email)->where("visit_date",$req->visit_date)->first()){
+	    // Validate only image allowed 
+	    $validatorImage = $this->onlyImageAllowed($req->file_uploads);
+
+	    if (is_array($validatorImage)) {
+	    	return new JsonResponse($validatorImage);
+	    }
+	    
+
+	    $visitDate = Carbon::createFromFormat('d/m/Y', $req->visit_date)->format('Y-m-d');
+
+	    if (DB::table('bookings')->where("customer_email",$req->customer_email)->where("visit_date",$visitDate)->first()){
 	    	return new JsonResponse([
 	            'message' => $req->customer_email. " already book on ".$req->visit_date.". please choose another visit date.",
 	            'status_code' => 422
@@ -227,7 +270,7 @@ class APIController extends Controller
 	        "customer_email" => $req->customer_email,
 	        "customer_phone" => $req->customer_phone,
 	        "surfing_experience" => $req->surfing_experience,
-	        "visit_date" => $req->visit_date,
+	        "visit_date" => $visitDate,
 	        "desired_board" => $req->desired_board,
 	        "created_at" => date("Y-m-d H:i:s"),
 	    ];
@@ -312,6 +355,15 @@ class APIController extends Controller
 	        ], 422);
 	    }
 
+	    $visitDate = Carbon::createFromFormat('d/m/Y', $req->visit_date)->format('Y-m-d');
+
+	     // Validate only image allowed 
+	    $validatorImage = $this->onlyImageAllowed($req->file_uploads);
+
+	    if (is_array($validatorImage)) {
+	    	return new JsonResponse($validatorImage);
+	    }
+
 	    // Update booking if validation passes
 		$booking = DB::table('bookings')
 		->where("id",$req->id)
@@ -321,7 +373,7 @@ class APIController extends Controller
 		    "customer_email" => $req->customer_email,
 		    "customer_phone" => $req->customer_phone,
 		    "surfing_experience" => $req->surfing_experience,
-		    "visit_date" => $req->visit_date,
+		    "visit_date" => $visitDate,
 		    "desired_board" => $req->desired_board,
 		    "created_at" => date("Y-m-d H:i:s")
 		]);
