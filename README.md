@@ -1,4 +1,4 @@
-# Swallmatch API
+# Swellmatch API
 
 ## Framework
 
